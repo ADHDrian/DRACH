@@ -4,6 +4,8 @@ from Bio import SeqIO
 from collections import Counter
 import numpy as np
 
+MAX_MOTIFS = 48
+
 def get_num_mat_from_alpha(list_bcs):
     alpha_to_num = {
         'A' : 1,
@@ -28,6 +30,8 @@ drachs = []
 barcodes = []
 for record in SeqIO.parse(in_fasta_file, "fasta"):
     seq = record.seq
+    if (len(seq)!=21) or ('GGGG' in seq):
+        continue
     drachs.append(str(seq[8:13]))
     barcodes.append(str(seq[:8] + seq[13:]))
 
@@ -57,7 +61,7 @@ for bc in motif_barcode.values():
 print('with distance', dist_mat[ind0, ind1])
 
 ### n >= 2 ###
-for n in range(2, len(motif_counts)):
+for n in range(2, MAX_MOTIFS):
     print('\nn = {}'.format(n))
     bcs_old = list(motif_barcode.values())
     print('Existing barcodes:')
@@ -77,10 +81,17 @@ for n in range(2, len(motif_counts)):
 
 ### summary ###
 with open(out_fasta_file, "w") as fout:
-    for motif, count in motif_counts:
+    for motif in motif_barcode.keys():
+        count = [v for k, v in motif_counts if k==motif][0]
         read_name = '>{}_freq{}'.format(motif, count)
         barcode = motif_barcode[motif]
         full_seq = barcode[:8] + motif + barcode[8:]
 
         fout.write('{}\n'.format(read_name))
         fout.write('{}\n'.format(full_seq))
+
+for motif in motif_barcode.keys():
+    if ((motif[0] in ['A', 'G', 'T']) and (motif[1] in ['A', 'G']) and (motif[2]=='A') and (motif[3]=='C') and (motif[4] in ['A', 'C', 'T'])):
+        print(motif, 'DRACH')
+    else:
+        print(motif, 'NOT')
