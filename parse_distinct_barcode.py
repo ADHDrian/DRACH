@@ -24,7 +24,7 @@ def get_distance_mat(mat0, mat1):
 ### paths ###
 data_dir = os.path.join(HOME, 'Data/DRACH')
 in_fasta_file = os.path.join(data_dir, 'oligoSlop8.fasta')
-out_fasta_file = os.path.join(data_dir, 'chosen_DRACH_oligo.fasta')
+out_fasta_file = os.path.join(data_dir, 'chosen_DRACH_oligoSlop8.fasta')
 
 drachs = []
 barcodes = []
