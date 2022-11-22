@@ -102,6 +102,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     BARCODE_SPAN = args.span
+    WORKSPACE = args.workspace
 
     genome = parse_genome_ref(args.ref)
     df_motif = parse_miclip_file(args.miclip, genome, args.motif)
