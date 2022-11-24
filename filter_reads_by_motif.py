@@ -17,15 +17,18 @@ def normalize_signal(input_read):
     signal = (signal - shift) / scale
     return signal
 
-workspace = '/prj/Isabel_IVT_Nanopore/HEK293A_wildtype/Jessica_HEK293/HEK293A_2/20190409_1503_GA10000_FAK10978_2e75d7be/achan/taiyaki'
+base_dir = '/home/achan/Data/Isabel_IVT_Nanopore/HEK293A_wildtype'
+taiyaki_dir = os.path.join(base_dir, 'taiyaki')
+minimap_dir = os.path.join(base_dir, 'minimap')
+outdir = os.path.join(base_dir, 'rodan')
+os.makedirs(outdir, exist_ok=True)
 motif = 'GGACT'
 barcode_len = 17
 
-bed_file = os.path.join(workspace, 'motif_{}.bed'.format(motif))
-genome_bam_file = os.path.join(workspace, 'aligned_genome.bam.sorted')
-taiyaki_file = os.path.join(workspace, 'mapped_reads/{}_merge.hdf5'.format(motif))
-# outdir = '/home/adrian/Data/Isabel_IVT_ONT/HEK293A_wildtype/taiyaki/mapped_reads'
-outfile = os.path.join(workspace, '{}_filtered.hdf5'.format(motif))
+bed_file = os.path.join(taiyaki_dir, 'motif_{}.bed'.format(motif))
+genome_bam_file = os.path.join(minimap_dir, 'aligned_genome.bam.sorted')
+taiyaki_file = os.path.join(taiyaki_dir, 'mapped_reads/{}_merge.hdf5'.format(motif))
+outfile = os.path.join(outdir, '{}_filtered.hdf5'.format(motif))
 
 num_to_alpha = {
     0 : 'A',
@@ -61,7 +64,7 @@ for qname in read_ids:
 ### cut out barcoded-sections in each read ###
 max_event_len = 1024
 
-signal_label = []
+id_signal_label = []
 for read_id in read_ids:
     this_read = taiyaki['Reads'][read_id]
     # dacs = np.array(this_read['Dacs'])
@@ -78,13 +81,13 @@ for read_id in read_ids:
 
         bc_reference = reference[bc_start:bc_end]
         bc_ref_to_signal = ref_to_signal[bc_start:bc_end+1]
-        bc_base_loc = (bc_ref_to_signal[1:] + bc_ref_to_signal[:-1]) / 2
+        # bc_base_loc = (bc_ref_to_signal[1:] + bc_ref_to_signal[:-1]) / 2
 
         if (bc_start<0) or ((bc_ref_to_signal[-1]-bc_ref_to_signal[0])>max_event_len):
             # print('Skipping {}...'.format(read_id))
             continue
 
-        signal_label.append((signal[bc_ref_to_signal[0]:bc_ref_to_signal[-1]], bc_reference))
+        id_signal_label.append((read_id, signal[bc_ref_to_signal[0]:bc_ref_to_signal[-1]], bc_reference))
 
     ### debug ###
     # plt.figure(figsize=(10, 5))
@@ -101,24 +104,29 @@ for read_id in read_ids:
 ### filter spb ###
 min_spb = 20
 max_spb = 70
-spbs = [len(sig)/len(la) for (sig, la) in signal_label]
-filtered_signal_label = []
-for sl, spb in zip(signal_label, spbs):
+spbs = [len(sig)/len(la) for (_, sig, la) in id_signal_label]
+filtered_id_signal_label = []
+for id_sig_lab, spb in zip(id_signal_label, spbs):
     if (spb>=min_spb) and (spb<=max_spb):
-        filtered_signal_label.append(sl)
+        filtered_id_signal_label.append(id_sig_lab)
 
 ### write out events ###
 num_events = len(filtered_signal_label)
 # rev_motif_num = np.array([alpha_to_num[x] for x in motif[::-1]])
 # label_len = len(rev_motif_num)
 
+id_len = len(filtered_id_signal_label[0][0])
+
 with h5py.File(outfile, "w") as h5_out:
+    h5_out_read_id = h5_out.create_dataset("read_ids", dtype=h5py.string_dtype(encoding='ascii'), shape=(num_events,))
     h5_out_event = h5_out.create_dataset("events", dtype="float32", shape=(num_events, max_event_len))
     h5_out_label = h5_out.create_dataset("labels", dtype="int64", shape=(num_events, barcode_len))
     h5_out_label_len = h5_out.create_dataset("labels_len", dtype="int64", shape=(num_events,))
 
-    for i, (signal, label) in enumerate(filtered_signal_label):
-        pad_left = (max_event_len - len(signal)) // 2
-        h5_out_event[i] = np.pad(signal, (pad_left, max_event_len - pad_left - len(signal)))
-        h5_out_label[i] = label
+    for i, (read_id, signal, label) in enumerate(filtered_id_signal_label):
+        # pad_left = (max_event_len - len(signal)) // 2
+        # h5_out_event[i] = np.pad(signal, (pad_left, max_event_len - pad_left - len(signal)))
+        h5_out_read_id[i] = read_id
+        h5_out_event[i] = np.pad(signal, (0, max_event_len - len(signal)))
+        h5_out_label[i] = np.array(label)+1
         h5_out_label_len[i] = barcode_len

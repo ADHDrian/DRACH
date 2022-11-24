@@ -4,11 +4,10 @@ from Bio.pairwise2 import align, format_alignment
 import numpy as np
 import matplotlib.pyplot as plt
 
-motif = 'TAATCCCAGCACTTTGGGAGG'
-span = 10
-ref = motif[::-1]
+motif = 'GGACT'
+span = 8
 
-def calc_mod_pos(in_str, burner=ref[:(span+1)]):
+def calc_mod_pos(in_str, burner):
     pos = 0
     while len(burner)>0:
         if in_str[0]=='-':
@@ -23,7 +22,7 @@ def calc_mod_pos(in_str, burner=ref[:(span+1)]):
     return pos - 1
 
 
-file = '/home/adrian/Data/DRACH/TAATCCCAGCACTTTGGGAGG/loss_pred_label_feature.pkl'
+file = '/home/adrian/Data/Isabel_IVT_Nanopore/HEK293A_wildtype/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif)
 img_out = '/home/adrian/img_out/DRACH'
 os.makedirs(img_out, exist_ok=True)
 
