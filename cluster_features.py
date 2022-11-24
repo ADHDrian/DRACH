@@ -2,7 +2,10 @@ import os
 import pickle
 from Bio.pairwise2 import align, format_alignment
 import numpy as np
+from tqdm import tqdm
 import matplotlib.pyplot as plt
+
+HOME = os.environ['HOME']
 
 motif = 'GGACT'
 span = 8
@@ -22,27 +25,28 @@ def calc_mod_pos(in_str, burner):
     return pos - 1
 
 
-file = '/home/adrian/Data/Isabel_IVT_Nanopore/HEK293A_wildtype/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif)
-img_out = '/home/adrian/img_out/DRACH'
+feature_file = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293A_wildtype/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif))
+img_out = os.path.join(HOME, 'img_out/DRACH')
 os.makedirs(img_out, exist_ok=True)
 
 vocab = { 1:"A", 2:"C", 3:"G", 4:"T" }
 
-with open(file, 'rb') as f:
+with open(feature_file, 'rb') as f:
     loss_pred_label_feature = pickle.load(f)
 
 motifs = []
 mat_feature = []
-for event in loss_pred_label_feature.values():
+for event in tqdm.tqdm(loss_pred_label_feature.values()):
     loss = event['loss']
     pred_label = event['pred_label']
+    gt_label = event['gt_label']
     feature = event['feature']
 
-    alignments = align.globalxx(ref, pred_label)
+    alignments = align.globalxx(gt_label, pred_label)
     aligned = alignments[0]
 
-    if aligned.score >= 15:
-        ref_mod_pos = calc_mod_pos(aligned.seqA)
+    if aligned.score >= 10:
+        ref_mod_pos = calc_mod_pos(aligned.seqA, gt_label[:span+1])
         pred_mod_pos = ref_mod_pos - len([x for x in aligned.seqB[:ref_mod_pos] if x not in vocab.values()])
 
         # print(format_alignment(*aligned))
@@ -59,9 +63,9 @@ for event in loss_pred_label_feature.values():
         # plt.figure()
         # plt.plot(mod_feature)
         # plt.show()
-    else:
-        print('Score {} too low'.format(aligned.score))
-        print('\n')
+    # else:
+    #     print('Score {} too low'.format(aligned.score))
+    #     print('\n')
 mat_feature = np.vstack(mat_feature)
 
 ### calculate pairwise distance ###
@@ -76,7 +80,7 @@ plt.xlabel('Cosine similarity')
 plt.ylabel('Counts')
 plt.axvline(c_thresh, color='r')
 plt.title('{}\n{} samples'.format(ref, len(mat_feature)))
-plt.savefig(os.path.join(img_out, 'hist_similarity.png'), bbox_inches='tight')
+plt.savefig(os.path.join(img_out, '{}_hist_similarity.png'.format(motif)), bbox_inches='tight')
 # plt.show()
 
 ### connected components ###
