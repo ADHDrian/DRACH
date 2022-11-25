@@ -36,7 +36,7 @@ with open(feature_file, 'rb') as f:
 
 motifs = []
 mat_feature = []
-for event in tqdm.tqdm(loss_pred_label_feature.values()):
+for event in tqdm(loss_pred_label_feature.values()):
     loss = event['loss']
     pred_label = event['pred_label']
     gt_label = event['gt_label']
@@ -69,9 +69,16 @@ for event in tqdm.tqdm(loss_pred_label_feature.values()):
 mat_feature = np.vstack(mat_feature)
 
 ### calculate pairwise distance ###
-from scipy.spatial.distance import pdist
-c_vec = 1.0 - pdist(mat_feature, 'cosine')
+# too slow!!!
+# from scipy.spatial.distance import pdist
+# c_vec = 1.0 - pdist(mat_feature, 'cosine')
 
+from sklearn.metrics import pairwise_distances as sk_pdist
+c_mat = 1.0 - sk_pdist(X=mat_feature, metric='cosine', n_jobs=-1)
+i_vec, j_vec = np.triu_indices(len(mat_feature), k=1)
+c_vec = c_mat[i_vec, j_vec]
+
+### plot histogram ###
 c_thresh = 0.20
 
 plt.figure(figsize=(10, 6))
@@ -162,7 +169,7 @@ ig.plot(
     vertex_size=0.1,
 )
 plt.title('Modularity {:.2f}'.format(modularity))
-plt.savefig(os.path.join(img_out, 'clusters.png'), bbox_inches='tight')
+plt.savefig(os.path.join(img_out, '{}_clusters.png'.format(motif)), bbox_inches='tight')
 
 ### outlier ###
 counts = Counter(membership).most_common()
