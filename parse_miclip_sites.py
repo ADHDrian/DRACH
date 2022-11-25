@@ -3,20 +3,7 @@ import argparse
 import pandas as pd
 import pysam
 from Bio import SeqIO, Align
-# from Bio.Align import substitution_matrices
-# aligner = Align.PairwiseAligner()
-# aligner.substitution_matrix = substitution_matrices.load("BLOSUM62")
-
 from collections import Counter
-
-# BARCODE_SPAN = 8
-# WORKSPACE = '/prj/Isabel_IVT_Nanopore/HEK293A_wildtype/Jessica_HEK293/HEK293A_2/20190409_1503_GA10000_FAK10978_2e75d7be/achan/taiyaki'
-# MOTIF = 'GGACT'
-# miclip_file = '/home/achan/Data/DRACH/miCLIP_union_flat_exclude_Y_chromosome.bed'
-# genome_ref = '/home/achan/Data/genomes/GRCh38_96.fa'
-# genome_bam_file = os.path.join(WORKSPACE, 'aligned_genome.bam.sorted')
-# transcriptome_bam_file = os.path.join(WORKSPACE, 'aligned_transcriptome.bam.sorted')
-# out_transcriptome_bam_file = os.path.join(WORKSPACE, 'transcriptome_{}.bam'.format(MOTIF))
 
 def parse_genome_ref(genome_ref):
     genome = {}
@@ -73,22 +60,29 @@ def parse_genome_alignment(genome_bam_file, df_motif):
     unique_read_ids = list(set([x for l in site_ind_read_ids.values() for x in l]))
     return unique_read_ids
 
-def write_motif_filtered_transcriptome_alignment(transcriptome_bam_file, unique_read_ids):
+def write_motif_filtered_transcriptome_alignment(transcriptome_bam_file, out_transcriptome_bam_file, unique_read_ids, outfile_read_ids):
     transcriptome_bam = pysam.AlignmentFile(transcriptome_bam_file, 'rb')
     transcriptome_indexed = pysam.IndexedReads(transcriptome_bam)
     transcriptome_indexed.build()
     header = transcriptome_bam.header.copy()
-    out = pysam.AlignmentFile(out_transcriptome_bam_file, 'wb', header=header)
-    for this_read_id in unique_read_ids:
-        try:
-            transcriptome_indexed.find(this_read_id)
-        except KeyError:
-            pass
-        else:
-            iterator = transcriptome_indexed.find(this_read_id)
-            for x in iterator:
-                out.write(x)
-    out.close()
+    written_read_ids = []
+    with pysam.AlignmentFile(out_transcriptome_bam_file, 'wb', header=header) as out_bam:
+        for this_read_id in unique_read_ids:
+            try:
+                transcriptome_indexed.find(this_read_id)
+            except KeyError:
+                pass
+            else:
+                written_read_ids.append(this_read_id)
+                iterator = transcriptome_indexed.find(this_read_id)
+                for x in iterator:
+                    out_bam.write(x)
+
+    with open(outfile_read_ids, 'w') as outfile:
+        outfile.write('read_id\n')
+        for id in unique_read_ids:
+            outfile.write('{}\n'.format(id))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Data.')
@@ -98,8 +92,9 @@ if __name__ == "__main__":
     parser.add_argument("--ref", default=None, type=str)
     parser.add_argument("--miclip", default=None, type=str)
     parser.add_argument("--genome_bam", default=None, type=str)
-    parser.add_argument("--transcriptome_bam", default=None, type=str)
-    parser.add_argument("--outfile", default=None, type=str)
+    parser.add_argument("--in_transcriptome_bam", default=None, type=str)
+    parser.add_argument("--filtered_transcriptome_bam", default=None, type=str)
+    parser.add_argument("--out_read_ids", default=None, type=str)
     args = parser.parse_args()
 
     BARCODE_SPAN = args.span
@@ -108,4 +103,4 @@ if __name__ == "__main__":
     genome = parse_genome_ref(args.ref)
     df_motif = parse_miclip_file(args.miclip, genome, args.motif)
     read_ids = parse_genome_alignment(args.genome_bam, df_motif)
-    write_motif_filtered_transcriptome_alignment(args.transcriptome_bam, args.outfile, read_ids)
+    write_motif_filtered_transcriptome_alignment(args.in_transcriptome_bam, args.filtered_transcriptome_bam, read_ids, args.out_read_ids)
