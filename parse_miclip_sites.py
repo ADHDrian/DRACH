@@ -4,9 +4,11 @@ import pandas as pd
 import pysam
 from Bio import SeqIO, Align
 from collections import Counter
+from tqdm import tqdm
 
 def parse_genome_ref(genome_ref):
     genome = {}
+    print('Parsing genome...')
     with open(genome_ref, 'r') as handle:
         for record in SeqIO.parse(handle, format='fasta'):
             id = record.id
@@ -36,6 +38,7 @@ def parse_miclip_file(miclip_file, genome, motif):
     miclip['motif'] = motifs
 
     most_common_motifs = Counter(motifs).most_common(50)
+    print('Most common motifs:')
     for k, v in most_common_motifs:
         print(k, v)
 
@@ -79,7 +82,7 @@ def write_motif_filtered_transcriptome_alignment(transcriptome_bam_file, out_tra
                     out_bam.write(x)
 
     with open(outfile_read_ids, 'w') as outfile:
-        outfile.write('read_id\n')
+        # outfile.write('read_id\n')
         for id in unique_read_ids:
             outfile.write('{}\n'.format(id))
 

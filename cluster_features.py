@@ -2,71 +2,76 @@ import os
 import pickle
 from Bio.pairwise2 import align, format_alignment
 import numpy as np
+from collections import Counter
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 HOME = os.environ['HOME']
 
 motif = 'GGACT'
-span = 8
+vocab = { 1:"A", 2:"C", 3:"G", 4:"T" }
 
-def calc_mod_pos(in_str, burner):
-    pos = 0
-    while len(burner)>0:
-        if in_str[0]=='-':
-            pos += 1
-            in_str = in_str[1:]
-        elif in_str[0]==burner[0]:
-            pos += 1
-            in_str = in_str[1:]
-            burner = burner[1:]
-        else:
-            print('WTH is this?', in_str[0])
-    return pos - 1
+# span = 8
+# def calc_mod_pos(in_str, burner):
+#     pos = 0
+#     while len(burner)>0:
+#         if in_str[0]=='-':
+#             pos += 1
+#             in_str = in_str[1:]
+#         elif in_str[0]==burner[0]:
+#             pos += 1
+#             in_str = in_str[1:]
+#             burner = burner[1:]
+#         else:
+#             print('WTH is this?', in_str[0])
+#     return pos - 1
 
+def collect_motif_feature(loss_pred_label_feature):
+    motifs = []
+    features = []
+    losses = []
+    for event in tqdm(loss_pred_label_feature.values()):
+        loss = event['loss']
+        pred_label = event['pred_label']
+        gt_label = event['gt_label']
+        feature = event['feature']
 
-feature_file = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293A_wildtype/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif))
+        alignments = align.globalxx(gt_label, pred_label)
+        aligned = alignments[0]
+
+        motif_start_pos = aligned.seqA.find(motif[::-1])
+        if motif_start_pos < 0:
+            continue
+        ref_mod_pos = motif_start_pos + 2
+        # if (aligned.seqA[ref_mod_pos] != 'A') or (pred_label[feat_mod_pos] != 'A'):
+        if (aligned.seqA[ref_mod_pos] != 'A') or (aligned.seqB[ref_mod_pos] != 'A'):
+            continue
+
+        feat_mod_pos = ref_mod_pos - Counter(aligned.seqB[:ref_mod_pos+1])['-']
+
+        mod_motif = pred_label[(feat_mod_pos - 2):(feat_mod_pos + 3)]
+        if len(mod_motif)<5:
+            continue
+        mod_feature = feature[feat_mod_pos]
+        features.append(mod_feature)
+        motifs.append(mod_motif)
+        losses.append(loss)
+    features = np.vstack(features)
+    return motifs, features, losses
+
+feature_file_ivt = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293_IVT_2/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif))
+feature_file_wt = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293A_wildtype/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif))
+
 img_out = os.path.join(HOME, 'img_out/DRACH')
 os.makedirs(img_out, exist_ok=True)
 
-vocab = { 1:"A", 2:"C", 3:"G", 4:"T" }
+with open(feature_file_ivt, 'rb') as f_ivt:
+    collection_ivt = pickle.load(f_ivt)
+motifs_ivt, features_ivt, losses_ivt = collect_motif_feature(collection_ivt)
 
-with open(feature_file, 'rb') as f:
-    loss_pred_label_feature = pickle.load(f)
-
-motifs = []
-mat_feature = []
-for event in tqdm(loss_pred_label_feature.values()):
-    loss = event['loss']
-    pred_label = event['pred_label']
-    gt_label = event['gt_label']
-    feature = event['feature']
-
-    alignments = align.globalxx(gt_label, pred_label)
-    aligned = alignments[0]
-
-    if aligned.score >= 10:
-        ref_mod_pos = calc_mod_pos(aligned.seqA, gt_label[:span+1])
-        pred_mod_pos = ref_mod_pos - len([x for x in aligned.seqB[:ref_mod_pos] if x not in vocab.values()])
-
-        # print(format_alignment(*aligned))
-        # print(aligned.seqB[pred_mod_pos-1:pred_mod_pos+2])
-        # print(aligned.seqA[:ref_mod_pos+1])
-        # print(pred_label[:pred_mod_pos+1])
-        # print('\n')
-
-        mod_feature = feature[pred_mod_pos]
-        mat_feature.append(mod_feature)
-
-        motifs.append(pred_label[(pred_mod_pos-2):(pred_mod_pos+3)])
-
-        # plt.figure()
-        # plt.plot(mod_feature)
-        # plt.show()
-    # else:
-    #     print('Score {} too low'.format(aligned.score))
-    #     print('\n')
-mat_feature = np.vstack(mat_feature)
+with open(feature_file_wt, 'rb') as f_wt:
+    collection_wt = pickle.load(f_wt)
+motifs_wt, features_wt, losses_wt = collect_motif_feature(collection_wt)
 
 ### calculate pairwise distance ###
 # too slow!!!
