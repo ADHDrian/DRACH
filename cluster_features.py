@@ -11,21 +11,6 @@ HOME = os.environ['HOME']
 motif = 'GGACT'
 vocab = { 1:"A", 2:"C", 3:"G", 4:"T" }
 
-# span = 8
-# def calc_mod_pos(in_str, burner):
-#     pos = 0
-#     while len(burner)>0:
-#         if in_str[0]=='-':
-#             pos += 1
-#             in_str = in_str[1:]
-#         elif in_str[0]==burner[0]:
-#             pos += 1
-#             in_str = in_str[1:]
-#             burner = burner[1:]
-#         else:
-#             print('WTH is this?', in_str[0])
-#     return pos - 1
-
 def collect_motif_feature(loss_pred_label_feature):
     motifs = []
     features = []

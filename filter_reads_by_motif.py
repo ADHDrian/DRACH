@@ -6,6 +6,8 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+HOME = os.environ['HOME']
+
 def normalize_signal(input_read):
     s_offset = input_read.attrs["offset"]
     s_range = input_read.attrs["range"]
@@ -18,10 +20,10 @@ def normalize_signal(input_read):
     signal = (signal - shift) / scale
     return signal
 
-base_dir = '/home/achan/Data/Isabel_IVT_Nanopore/HEK293A_wildtype'
-# base_dir = '/home/achan/Data/Isabel_IVT_Nanopore/HEK293_IVT_2'
+drach_dir = os.path.join(HOME, 'Data/DRACH')
 
-drach_dir = '/home/achan/Data/DRACH'
+# base_dir = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293A_wildtype')
+base_dir = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293_IVT_2')
 
 taiyaki_dir = os.path.join(base_dir, 'taiyaki')
 minimap_dir = os.path.join(base_dir, 'minimap')
