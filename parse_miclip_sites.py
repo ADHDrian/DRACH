@@ -91,7 +91,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Data.')
     parser.add_argument("--workspace", default=None, type=str)
     parser.add_argument("--motif", default=None, type=str)
-    parser.add_argument("--span", default=8, type=int, help="Architecture file")
+    parser.add_argument("--span", default=8, type=int)
     parser.add_argument("--ref", default=None, type=str)
     parser.add_argument("--miclip", default=None, type=str)
     parser.add_argument("--genome_bam", default=None, type=str)

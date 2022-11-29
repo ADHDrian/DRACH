@@ -44,11 +44,11 @@ def collect_motif_feature(loss_pred_label_feature):
     features = np.vstack(features)
     return motifs, features, losses
 
-feature_file_ivt = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293_IVT_2/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif))
-feature_file_wt = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293A_wildtype/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif))
-
 img_out = os.path.join(HOME, 'img_out/DRACH')
 os.makedirs(img_out, exist_ok=True)
+
+feature_file_ivt = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293_IVT_2/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif))
+feature_file_wt = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293A_wildtype/DRACH/{}_loss_pred_gt_feature.pkl'.format(motif))
 
 with open(feature_file_ivt, 'rb') as f_ivt:
     collection_ivt = pickle.load(f_ivt)
@@ -57,6 +57,16 @@ motifs_ivt, features_ivt, losses_ivt = collect_motif_feature(collection_ivt)
 with open(feature_file_wt, 'rb') as f_wt:
     collection_wt = pickle.load(f_wt)
 motifs_wt, features_wt, losses_wt = collect_motif_feature(collection_wt)
+
+### histograms of losses ###
+plt.figure(figsize=(10, 8))
+plt.hist(losses_ivt, bins=50, range=[0, 0.5], label='HEK293 IVT 2')
+plt.hist(losses_wt, bins=50, range=[0, 0.5], label='HEK293A WT')
+plt.xlabel('CTC loss')
+plt.ylabel('Counts')
+plt.legend(loc='upper right')
+plt.savefig(os.path.join(img_out, 'hist_ctc_loss_wt_vs_ivt.png'), bbox_inches='tight')
+plt.close()
 
 ### calculate pairwise distance ###
 # too slow!!!
