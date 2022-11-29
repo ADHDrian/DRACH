@@ -22,8 +22,8 @@ def normalize_signal(input_read):
 
 drach_dir = os.path.join(HOME, 'Data/DRACH')
 
-# base_dir = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293A_wildtype')
-base_dir = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293_IVT_2')
+base_dir = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293A_wildtype')
+# base_dir = os.path.join(HOME, 'Data/Isabel_IVT_Nanopore/HEK293_IVT_2')
 
 taiyaki_dir = os.path.join(base_dir, 'taiyaki')
 minimap_dir = os.path.join(base_dir, 'minimap')
@@ -52,8 +52,9 @@ genome_index = pysam.IndexedReads(genome_alignment)
 genome_index.build()
 
 ### build read -> barcode dictionary ###
-read_ids = list(taiyaki['read_ids'])
+read_ids = [id.decode('ascii') for id in taiyaki['read_ids']]
 dict_id_barcode = {id: [] for id in read_ids}
+print('Parsing genome for possible mod sites...')
 for qname in tqdm(read_ids):
     entries = genome_index.find(qname)
     for entry in entries:
@@ -74,6 +75,7 @@ min_spb = 20
 max_spb = 70
 
 id_signal_label = []
+print('Selecting reads with overlapping barcodes...')
 for read_id in tqdm(read_ids):
     barcodes = dict_id_barcode[read_id]
     if len(barcodes)==0:
@@ -143,6 +145,7 @@ for read_id in tqdm(read_ids):
 
 ### write out events ###
 num_events = len(id_signal_label)
+print('Collected {} events'.format(num_events))
 labels_len = [len(label) for (_, signal, label) in id_signal_label]
 max_label_len = max(labels_len)
 # rev_motif_num = np.array([alpha_to_num[x] for x in motif[::-1]])

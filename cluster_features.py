@@ -4,6 +4,7 @@ from Bio.pairwise2 import align, format_alignment
 import numpy as np
 from collections import Counter
 from tqdm import tqdm
+from sklearn.metrics import pairwise_distances as sk_pdist
 import matplotlib.pyplot as plt
 
 HOME = os.environ['HOME']
@@ -59,34 +60,48 @@ with open(feature_file_wt, 'rb') as f_wt:
 motifs_wt, features_wt, losses_wt = collect_motif_feature(collection_wt)
 
 ### histograms of losses ###
-plt.figure(figsize=(10, 8))
-plt.hist(losses_ivt, bins=50, range=[0, 0.5], label='HEK293 IVT 2')
-plt.hist(losses_wt, bins=50, range=[0, 0.5], label='HEK293A WT')
-plt.xlabel('CTC loss')
-plt.ylabel('Counts')
-plt.legend(loc='upper right')
-plt.savefig(os.path.join(img_out, 'hist_ctc_loss_wt_vs_ivt.png'), bbox_inches='tight')
-plt.close()
+# min_edge = 0
+# max_edge = 7
+# bin_width = 0.1
+# num_bins = int((max_edge - min_edge) / bin_width)
+# bin_edges = np.linspace(min_edge, max_edge, num_bins+1)
+# bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+#
+# hist_loss_wt, _ = np.histogram(losses_wt, bins=bin_edges)
+# pdf_loss_wt = hist_loss_wt / np.sum(hist_loss_wt)
+#
+# hist_loss_ivt, _ = np.histogram(losses_ivt, bins=bin_edges)
+# pdf_loss_ivt = hist_loss_ivt / np.sum(hist_loss_ivt)
+#
+# plt.figure(figsize=(10, 8))
+# plt.plot(bin_centers, pdf_loss_ivt, label='HEK293 IVT 2')
+# plt.plot(bin_centers, pdf_loss_wt, label='HEK293A WT')
+# plt.xlabel('CTC loss')
+# plt.ylabel('Density')
+# plt.legend(loc='upper right')
+# plt.savefig(os.path.join(img_out, 'hist_ctc_loss_wt_vs_ivt.png'), bbox_inches='tight')
+# plt.close()
 
 ### calculate pairwise distance ###
 # too slow!!!
 # from scipy.spatial.distance import pdist
 # c_vec = 1.0 - pdist(mat_feature, 'cosine')
 
-from sklearn.metrics import pairwise_distances as sk_pdist
+ds_label = np.array(['IVT' for i in range(features_ivt.shape[0])] + ['WT' for i in range(features_wt.shape[0])])
+mat_feature = np.vstack((features_ivt, features_wt))
 c_mat = 1.0 - sk_pdist(X=mat_feature, metric='cosine', n_jobs=-1)
 i_vec, j_vec = np.triu_indices(len(mat_feature), k=1)
 c_vec = c_mat[i_vec, j_vec]
 
 ### plot histogram ###
-c_thresh = 0.20
+c_thresh = 0.45
 
 plt.figure(figsize=(10, 6))
-plt.hist(c_vec, bins=50, range=[-1, 1])
+plt.hist(c_vec, bins=100, range=[-1, 1])
 plt.xlabel('Cosine similarity')
 plt.ylabel('Counts')
 plt.axvline(c_thresh, color='r')
-plt.title('{}\n{} samples'.format(ref, len(mat_feature)))
+plt.title('{}\n{} samples'.format(motif, len(mat_feature)))
 plt.savefig(os.path.join(img_out, '{}_hist_similarity.png'.format(motif)), bbox_inches='tight')
 # plt.show()
 
@@ -135,6 +150,7 @@ plt.savefig(os.path.join(img_out, '{}_hist_similarity.png'.format(motif)), bbox_
 import igraph as ig
 import leidenalg as la
 
+c_thresh = 0.45
 i_vec, j_vec = np.triu_indices(len(mat_feature), k=1)
 c_mask = c_vec>=c_thresh
 
@@ -143,32 +159,56 @@ sel_j_vec = j_vec[c_mask]
 sel_c_vec = c_vec[c_mask]
 g = ig.Graph()
 g.add_vertices(len(mat_feature))
+g.vs['ds_label'] = ds_label
 g.add_edges(zip(sel_i_vec, sel_j_vec))
 g.es['weight'] = sel_c_vec
 partition = la.find_partition(g, la.ModularityVertexPartition, weights='weight')
 membership = np.array(partition.membership)
 modularity = partition.modularity
 
-num_clusters = len(np.unique(membership))
-palette = ig.RainbowPalette(n=num_clusters)
+# num_clusters = len(np.unique(membership))
+# palette = ig.RainbowPalette(n=num_clusters)
+# for cluster_ind in range(num_clusters):
+#     event_ind = np.where(membership==cluster_ind)[0]
+#     g.vs[event_ind]["color"] = cluster_ind
+#     cluster_edges = g.es.select(_within=g.vs[event_ind])
+#     cluster_edges["color"] = cluster_ind
+#
+# fig = plt.figure(figsize=(10, 5))
+# ax1 = fig.add_subplot(1, 2, 1)
+# ig.plot(partition, target=ax1)
+
+ig.plot(partition, os.path.join(img_out, '{}_clusters.png'.format(motif)))
+
+# ig.plot(
+#     g,
+#     layout=g.layout_fruchterman_reingold(),
+#     bbox=(100, 100),
+#     palette=palette,
+#     edge_width=1,
+#     target=ax1,
+#     vertex_size=0.1,
+# )
+plt.title('Modularity {:.2f}'.format(modularity))
+
 for cluster_ind in range(num_clusters):
     event_ind = np.where(membership==cluster_ind)[0]
     g.vs[event_ind]["color"] = cluster_ind
     cluster_edges = g.es.select(_within=g.vs[event_ind])
     cluster_edges["color"] = cluster_ind
 
-fig = plt.figure(figsize=(10, 10))
-ax = fig.add_subplot(111)
+ax2 = fig.add_subplot(1, 2, 2)
 ig.plot(
     g,
-    layout = g.layout_fruchterman_reingold(),
-    bbox = (100, 100),
-    palette=palette,
+    layout=g.layout_fruchterman_reingold(),
+    bbox=(100, 100),
     edge_width=1,
-    target=ax,
+    target=ax1,
     vertex_size=0.1,
 )
 plt.title('Modularity {:.2f}'.format(modularity))
+
+
 plt.savefig(os.path.join(img_out, '{}_clusters.png'.format(motif)), bbox_inches='tight')
 
 ### outlier ###
